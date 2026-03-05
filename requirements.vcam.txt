@@ -1,0 +1,8 @@
+datetime
+opencv-python-headless
+#opencv-python
+requests
+ultralytics
+redis
+rq
+pyrogram
