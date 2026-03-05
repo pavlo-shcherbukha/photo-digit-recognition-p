@@ -5,6 +5,7 @@
 - [2. Установка Redis як Native Servce на Raspberry PI5](#p2)
 - [3. Запуск на Raspberry PI додатку розпізнавання напруги по фотографії](#p3)
 - [4. Запуск на Raspberry PI додатку по відправці повідомлень в Telegram](#p4)
+- [5. Запуск на Raspberry PI додатку для моніторингу стану UPS Module S3](#p5)
 
 <!-- TOC END -->
 
@@ -36,7 +37,7 @@
 Узагальнена компонентна діаграма показана на [pic-01](#pic-01)
 
 
-<kbd><img src="doc/pic-01.png" /></kbd>
+<kbd><img src="doc/pic-01-1.png" /></kbd>
 <p style="text-align: center;"><a name="pic-01">pic-01</a></p>
 
 В якості камери використовую мобільний телефон з додатком IP-Camera
@@ -52,12 +53,26 @@
 
  А щоб компенсувати високу чутливість камери та надмірну яскравість індикаторів, прийшлося додати власну підсвітку та ізолювати від зовнішнього освітлення.
 
- Поряд поклав чорний корпус Raspberry PI, що виступив мозковим центром системи. На  [pic-04](#pic-04)
+ Поряд поклав чорний корпус Raspberry PI, що виступив мозковим центром системи. 
+ 
+ На  [pic-04](#pic-04) показана програмна архітектура.
 
- <kbd><img src="doc/pic-04.png" /></kbd>
+ <kbd><img src="doc/pic-04-1.png" /></kbd>
 <p style="text-align: center;"><a name="pic-04">pic-04</a></p>
 
-показана програмна архітектура.  А на [pic-05](#pic-05) та  [pic-06](#pic-06)  показані приклади повідомлень з Телеграм:
+Так як це проект моніторингу, то краще Raspberyy живити від безперебійника. У мене в наявності є [Джерело Безперебійного Живлення 5V/5A UPS Module 3S](https://evo.net.ua/dzherelo-bezperebiinoho-zhyvlennia-5v-5a-ups-module-3s-23884/), тому підключив його. Особливістю цього безперебійника є те, що він по шині  I2C  може передавати дані про стан акумулторів, строум споживання/розряду та потужність споживання. При цьому, виробник надає python модуль, який може працювати конслольно, або у складі додатку. От я  додав сюди ще і додаток  моніторингу стану безперебійника.
+
+Він також запускається не залежно від інших  додатків "як сервіс". Але цьому додатку треба передати свої дані до  інших двох додатків:
+
+- Щоб додаток **voltage-rellay** їх прочитав та записав в JSONL-log;
+
+- Щоб додаток **voltage_rellay_tlg_msg** їх прочитав та включив у повідмолення  Telegram.
+
+Ці додатки не цікавить зміна протягом часу. Їх цікавить тільки поточне значення тому цей додаток публікує в Redis  3 значння  як KEY-VALUE,
+а два інших їх вичитують в потрібний їм момент. Тобто, реалізований такий собі механізм роздідяємої пам'яті між трьома додатками. На додатко у нас ще є і черга для тих даних, де маж значення їх послідовність надходження. І в ній передаються не тільки текст а і байтовий образ фотографії з реле. Тому це дає можливість відслідковувати зміну напруги.
+
+
+На [pic-05](#pic-05) ,  [pic-06](#pic-06)   та  [pic-07](#pic-07)  показані приклади повідомлень з Телеграм. На  [pic-07](#pic-07) саме показано повыдмолення з даними стану UPS.
 
  <kbd><img src="doc/pic-05.jpg" /></kbd>
 <p style="text-align: center;"><a name="pic-05">pic-05</a></p>
@@ -65,6 +80,11 @@
 
  <kbd><img src="doc/pic-06.jpg" /></kbd>
 <p style="text-align: center;"><a name="pic-06">pic-06</a></p>
+
+
+ <kbd><img src="doc/pic-07.jpg" /></kbd>
+<p style="text-align: center;"><a name="pic-07">pic-07</a></p>
+
 
 JSON - лог має таку структуру.
 
@@ -450,6 +470,20 @@ sudo systemctl daemon-reload
 sudo systemctl start voltage_rellay.service
 ```
 
+Для того, щоб перенсти фотгорафії для навчання чи сам журнал на Windows машину для подальшої ороботи можна використати такі команди
+
+```bash
+# З windows на Raspberry скопіювати file
+scp -r  C:/DEV/model.ps user@host:/home/user/Downloads
+
+# Скопіювати з raspberry зображення для навчання на windows машину
+scp -r user@host:/opt/voltage-rellay/to_label C:/Users/<windows user>/Downloads/tolabel_1
+
+scp -r user@host:/opt/voltage-rellay/db_detected/processing_log.jsonl C:/Users/<windows user>/Downloads/voltagelog
+
+
+```
+
 ## <a name="p4">4. Запуск на Raspberry PI додатку по відправці повідомлень в Telegram </a>
 
 Проект передбачається запускати "як сервіс" на Raspberry PI/  тому треба налаштувати правильний записук і встановити залежності.
@@ -618,4 +652,142 @@ docker logs tlg_worker -f
 docker stop tlg_worker
 # видалити контейнер
 docker rm tlg_worker
+```
+
+
+
+
+## <a name="p5">5. Запуск на Raspberry PI додатку для моніторингу стану UPS Module S3</a>
+
+Так як це проект моніторингу, то краще Raspberyy живити від безперебійника. У мене в наявності є [Джерело Безперебійного Живлення 5V/5A UPS Module 3S](https://evo.net.ua/dzherelo-bezperebiinoho-zhyvlennia-5v-5a-ups-module-3s-23884/), тому підключив його. Особливісю цього безперебійника є те, що він по шині  I2C  може передавати дані про стан акумулторів, строум споживання/розрядк та потужність споживання. При цьому, виробник надає python модуль, який може працювати конслольно, або у складі сервісу. От я  додав сюди ще і сервіс  моніторингу стану безперебійника.
+
+Він так же запускається не залежно від інших  додатків "як сервіс". Але йцьому додатку треа передати свої дані до  інших:
+- Щоб додаток **voltage-rellay** їх прочитав та записав в JSONL-log;
+- Щоб додаток **voltage_rellay_tlg_msg** їх прочитав та включив у повідмолення  Telegram.
+
+Ці додатки не цікавить зміна протягом часу. Їх цікавить тільки поточне значення тому цей додатко публікує в Redis  3 значння 
+, а два інших їх вичитують в потрібний їм момент.
+
+
+
+
+Проект передбачається запускати "як сервіс" на Raspberry PI,  тому треба налаштувати правильний записук і встановити залежності.
+
+- Створення віртуального середовища та встановлення залежностей
+
+```bash
+# створити каталог додатку
+cd /opt/ups_s3
+# встановити права власнику каталога
+sudo chown pi:pi /opt/ups_s3
+# переходимо в каталог і встановлюємо залежності
+cd /opt/ups_s3
+# Встановлюємо залежності
+## Створюємо віртуальне середовище
+python3 -m venv env
+## активуємо віртуальне середовища
+source ./env/bin/activate
+## Оновлюємо  pip
+pip install --upgrade pip
+## Встановлюємо залежності
+pip install -r requirements.ups.txt
+```
+
+- Налаштування конфігураційного файлу env -змінних **config.env**
+
+```bash
+sudo nano /opt/ups_s3/config.env
+```
+
+Для запуску проекту в системі потрібно налаштувати такі env-змінні:
+
+```text
+
+# параметри підклчення до REDIS
+# хост
+RDS_HOST="localhost"
+# порт
+RDS_PORT="6379"
+
+```
+
+- Налаштування конфігурацsйного файлу сервіса
+
+```bash
+sudo nano /etc/systemd/system/ups_s3.service
+```
+
+- Текст конфігурайійного файлу
+
+```text
+[Unit]
+Description=ups_s3 Monitoring UPS S3
+# Коли є залежності від Redis
+After=network.target redis-server.service
+Requires=redis-server.service
+
+[Service]
+# Шлях до папки з проєктом
+WorkingDirectory=/opt/ups_s3
+# Вказуємо шлях до нашого файлу зі змінними
+EnvironmentFile=/opt/ups_s3/config.env
+# Шлях до Python всередині venv та шлях до самого скрипта
+ExecStart=/opt/ups_s3/env/bin/python /opt/ups_s3/ups_runner.py
+
+# Запуск від імені стандартного користувача RPi
+User=pi
+Group=pi
+
+Restart=always
+RestartSec=5
+
+# Дозволяє бачити принти в логах journalctl одразу
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+```
+
+- Запуск сервіса
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable ups_s3.service
+sudo systemctl start ups_s3.service
+sudo systemctl status ups_s3.service
+```
+
+- моніторинг роботи логу
+
+Тепер перевіримо, що сервіс дійсно працює, шляхом перегляду "живого" лога його роботи
+
+```bash
+journalctl -u ups_s3.service -f
+
+```
+
+-f вказує на те, що показувати лог в режимі реального часу
+
+- Зупинка сервісу
+
+Зупинка сервісу виконується командою:
+
+```bash
+sudo systemctl stop ups_s3.service
+
+```
+
+І знову треба перевірити логи, що сервіс зупинився:
+
+```bash
+journalctl -u ups_s3.service -f
+
+```
+
+- Дії, коли файл конфігурації сервісу треба змінити
+
+```bash
+sudo systemctl stop ups_s3.service
+sudo systemctl daemon-reload
+sudo systemctl start ups_s3.service
 ```

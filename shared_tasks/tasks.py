@@ -63,6 +63,14 @@ def send_telegram_alert(message, image_data=None):
     # Отримуємо картинку з Redis
 
     #frame_bytes = red.get('voltage:last_frame')
+    # Приклад логіки для воркера Telegram
+    v_net = red.get('voltage:current')
+    v_ups = red.get('ups:v')
+    p_ups = red.get('ups:p')
+
+    status_icon = "🔌" if float(red.get('ups:a') or 0) >= 0 else "🔋"
+    ext_message = f"{status_icon} Мережа: {v_net}V\n⚡ UPS: {v_ups}V ({p_ups}%)"
+
 
     with Client(isession_name, iapi_id, iapi_hash) as app:
 
@@ -70,8 +78,8 @@ def send_telegram_alert(message, image_data=None):
             # Створюємо потік у пам'яті
             photo_stream = io.BytesIO(image_data)
             photo_stream.name = "alert_frame.jpg"
-            app.send_photo( ichat_id, photo=photo_stream, caption=message)
+            app.send_photo( ichat_id, photo=photo_stream, caption=ext_message)
             logger.info(f"Фото успішно надіслано для користувача ")            
         else:
-            app.send_message(ichat_id, message)
+            app.send_message(ichat_id, ext_message)
 

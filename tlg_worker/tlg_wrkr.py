@@ -55,13 +55,13 @@ irds_host = os.getenv('RDS_HOST', 'localhost')
 irds_port = int(os.getenv('RDS_PORT', 6379))
 irds_tlgqueue = os.getenv('RDS_QUEUE', 'voltage_message')
 
-
+logger.debug( 'Підключаємось до Redis на {}:{}'.format(irds_host, irds_port) )
+red = redis.StrictRedis(host=irds_host, port=irds_port, decode_responses=False)
+logger.debug( 'Підключення до Redis встановлено' )
 
 def main():
     logger.info("Запускаю TLG Worker")
-    logger.debug( 'Підключаємось до Redis на {}:{}'.format(irds_host, irds_port) )
-    red = redis.StrictRedis(host=irds_host, port=irds_port, decode_responses=False)
-    logger.debug( 'Підключення до Redis встановлено' )
+
 
     # Створюємо список об'єктів Queue правильно
     # Для кожної назви черги в listen створюємо об'єкт Queue з підключенням

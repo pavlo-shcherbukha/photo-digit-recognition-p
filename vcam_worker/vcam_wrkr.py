@@ -209,12 +209,24 @@ def main():
                 # Отримуємо напругу
  
                 voltage_text, debug_roi, log_entry = get_voltage_local(frame, istest=True, frame_count=frame_count)
-                log_to_jsonl(log_entry)
+                #log_to_jsonl(log_entry)
                 # Зберігаємо зображення з відмітками для налагодження
                 debug_filename = os.path.join(debug_dir, f"roi_{frame_count:04d}.jpg")
                 cv2.imwrite(debug_filename, debug_roi)
 
                 log_entry["debug_image"] = debug_filename   
+
+                v_net = red.get('voltage:current')
+                v_ups = red.get('ups:v')
+                p_ups = red.get('ups:p')
+
+                upsinfo = {
+                    "v_net": v_net,
+                    "v_ups": v_ups,
+                    "p_ups": p_ups
+                }
+                log_entry["upsinfo"] = upsinfo
+
                 log_to_jsonl(log_entry)      
                 
                 if voltage_text:
